@@ -1,0 +1,31 @@
+ABOKMEN  DFHMSD MODE=INOUT,LANG=COBOL,STORAGE=AUTO,TYPE=&SYSPARM,      X
+               TIOAPFX=YES,CTRL=FREEKB,                                X
+               MAPATTS=(COLOR,HILIGHT)
+MENU    DFHMDI SIZE=(24,80),LINE=1,COLUMN=1
+TITLE   DFHMDF POS=(2,25),LENGTH=30,                                   X
+               ATTRB=(PROT,BRT),                                       X
+               INITIAL='UNIQUE RAILWAY BOOKING'
+OPT1    DFHMDF POS=(6,20),LENGTH=30,                                   X
+               ATTRB=(PROT,NORM),                                      X
+               INITIAL='1. BOOK TICKET'
+
+OPT2    DFHMDF POS=(8,20),LENGTH=30,                                   X
+               ATTRB=(PROT,NORM),                                      X
+               INITIAL='2. ENQUIRY'
+
+OPT3    DFHMDF POS=(10,20),LENGTH=30,                                  X
+               ATTRB=(PROT,NORM),                                      X
+               INITIAL='3. CANCEL TICKET'
+PROMPT  DFHMDF POS=(14,20),LENGTH=25,                                  X
+               ATTRB=(PROT,NORM),                                      X
+               INITIAL='ENTER OPTION:'
+
+OPTION  DFHMDF POS=(14,47),LENGTH=1,                                   X
+               ATTRB=(UNPROT,IC),                                      X
+               PICIN='9'
+        DFHMDF POS=(14,49),LENGTH=1,ATTRB=ASKIP
+MSG     DFHMDF POS=(18,20),LENGTH=40,                                  X
+               ATTRB=(PROT,BRT)
+        DFHMSD TYPE=FINAL
+               END
+

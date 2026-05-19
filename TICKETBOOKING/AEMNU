@@ -1,0 +1,60 @@
+123456 IDENTIFICATION DIVISION.
+       PROGRAM-ID. AMENU.
+       ENVIRONMENT DIVISION.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+
+       COPY DFHAID.
+       COPY ABOKMEN.
+       01 WS-ID  PIC X(80).
+       LINKAGE SECTION.
+       01  DFHCOMMAREA.
+           05 CA-KEY  PIC X(6).
+       PROCEDURE DIVISION.
+       MAIN-SECTION.
+               IF EIBCALEN = 0
+                  MOVE LOW-VALUES TO MENUO
+                  EXEC CICS SEND MAP('MENU')
+                                 MAPSET('ABOKMEN')
+                                 ERASE
+                  END-EXEC
+                  EXEC CICS RETURN
+                            TRANSID('TRBK')
+                            COMMAREA(WS-ID)
+                            LENGTH(LENGTH OF WS-ID)
+                  END-EXEC
+                ELSE
+                 IF EIBAID = DFHENTER
+                  EXEC CICS RECEIVE MAP('MENU')
+                             MAPSET('ABOKMEN')
+                  END-EXEC
+                  EVALUATE OPTIONI
+                  WHEN 1
+                       EXEC CICS XCTL
+                            PROGRAM('TICKBK')
+                       END-EXEC
+                  WHEN 2
+                       EXEC CICS XCTL
+                            PROGRAM('TICKBK')
+                       END-EXEC
+                  WHEN 3
+                       EXEC CICS XCTL
+                            PROGRAM('TICKBK')
+                       END-EXEC
+                  WHEN OTHER
+                       MOVE 'WRONG CHOICE' TO MSGO
+                       EXEC CICS SEND MAP('MENU')
+                                  MAPSET('ABOKMEN')
+                       END-EXEC
+                       EXEC CICS RETURN
+                       END-EXEC
+                 END-EVALUATE
+                ELSE
+                    MOVE 'WRONG KEY CHOICE' TO MSGO
+                    EXEC CICS SEND MAP('MENU')
+                               MAPSET('ABOKMEN')
+                    END-EXEC
+                    EXEC CICS RETURN
+                    END-EXEC
+                END-IF.
+

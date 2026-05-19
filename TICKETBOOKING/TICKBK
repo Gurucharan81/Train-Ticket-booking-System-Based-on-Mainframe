@@ -1,0 +1,268 @@
+123456 IDENTIFICATION DIVISION.
+       PROGRAM-ID. TICKBK.
+       ENVIRONMENT DIVISION.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+
+       COPY DFHAID.
+       COPY ABTICK.
+       01 WS-ABSTIME PIC X(30).
+       01 WS-ID  PIC X(80).
+       01 WS-DATE PIC X(10).
+       01 WS-RESP     PIC S9(8) COMP.
+       01 WS-TRAINDT.
+          05 WS-TID   PIC X(10).
+          05 WS-TNAME PIC X(30).
+          05 WS-SOURCE PIC X(10).
+          05 WS-DESTI PIC X(10).
+          05 WS-MSTOP PIC X(10).
+          05 WS-TPRICE PIC 9(4).
+          05 FILLER PIC X VALUE SPACES.
+          05 WS-TSEATS PIC 99.
+          05 WS-AVLSEATS PIC 99.
+          05 REST PIC X VALUE SPACES.
+       01 WS-BOOKED.
+          05 WS-SNO PIC 9(4).
+          05 WS-PNRNO PIC X(10).
+          05 WS-PNAME PIC X(20).
+          05 WS-AGE PIC   XX.
+          05 WS-GENDER PIC X.
+          05 WS-SEATNO PIC 999.
+          05 TRAIN-NO PIC X(10).
+          05 DATE1 PIC X(10).
+          05 STATUS1 PIC X(10).
+          05 REST PIC X(10).
+       01 EOF PIC X VALUE 'N'.
+       01 I PIC 99 VALUE 0.
+       01 C PIC 99 VALUE 0.
+       LINKAGE SECTION.
+       01 DFHCOMMAREA.
+          05 CA-TRAINNO1 PIC X(10).
+          05 CA-TRAINNO2 PIC X(10).
+          05 CA-TRAINNO3 PIC X(10).
+          05 CA-TRAINNO4 PIC X(10).
+          05 CA-SOURCEC PIC X(10).
+          05 CA-DESTIC PIC X(10).
+          05 CA-DATE PIC X(10).
+          05 SCREEN PIC X VALUE 'X'.
+          05 CHOICE1 PIC 9 .
+       PROCEDURE DIVISION.
+       MAIN-SECTION.
+               IF EIBCALEN = 0
+                  MOVE LOW-VALUES TO BOOKMAPO
+                  EXEC CICS SEND MAP('BOOKMAP')
+                                 MAPSET('ABTICK')
+                                 ERASE
+                  END-EXEC
+                  EXEC CICS RETURN
+                            TRANSID('BOOK')
+                            COMMAREA(WS-ID)
+                            LENGTH(LENGTH OF WS-ID)
+                  END-EXEC
+                ELSE
+      *          MOVE CA-C TO C
+      *          EXEC CICS SEND TEXT
+      *                         FROM(C)
+      *                         LENGTH(2)
+      *          END-EXEC
+                 EVALUATE EIBAID
+                 WHEN DFHENTER
+                      EXEC CICS RECEIVE MAP('BOOKMAP')
+                                 MAPSET('ABTICK')
+                      END-EXEC
+                      EXEC CICS SEND TEXT
+                                     FROM(CHOICEI)
+                                     LENGTH(LENGTH OF CHOICEI)
+                      END-EXEC
+                      IF CHOICEI IS NOT NUMERIC
+                         PERFORM PROCESS-PARA
+                      ELSE
+                         PERFORM DETAILS-ENTRY
+                      END-IF
+                 WHEN DFHPF3
+                      EXEC CICS RETURN
+                                TRANSID('BOOK')
+                      END-EXEC
+                 WHEN OTHER
+                      MOVE 'WRONG KEY PRESSED' TO MSGO
+                      EXEC CICS SEND MAP('BOOKMAP')
+                                     MAPSET('ABTICK')
+                                     ERASE
+                      END-EXEC
+                      EXEC CICS RETURN
+                                TRANSID('BOOK')
+                      END-EXEC
+                 END-EVALUATE
+                END-IF.
+
+       PROCESS-PARA.
+      *        ADD 1 TO CA-C
+               MOVE LOW-VALUES TO WS-TID
+               MOVE 0 TO I
+               MOVE SPACES TO TRN1O NAM1O DAT1O SEA1O
+                              TRN2O NAM2O DAT2O SEA2O
+                              TRN3O NAM3O DAT3O SEA3O
+                              TRN4O NAM4O DAT4O SEA4O
+               MOVE SRCI TO CA-SOURCEC
+               MOVE DSTI TO CA-DESTIC
+               MOVE DATEI TO CA-DATE WS-DATE
+                    EXEC CICS SEND TEXT
+                                   FROM(CA-SOURCEC)
+                                   LENGTH(LENGTH OF CA-SOURCEC)
+                    END-EXEC
+                     EXEC CICS SEND TEXT
+                                    FROM(CA-DESTIC)
+                                    LENGTH(LENGTH OF CA-DESTIC)
+                     END-EXEC
+                    EXEC CICS STARTBR
+                         FILE('TRAINDT')
+                           RIDFLD(WS-TID)
+                           RESP(WS-RESP)
+                    END-EXEC
+      *             EXEC CICS ASKTIME
+      *             ABSTIME(WS-ABSTIME)
+      *             END-EXEC
+      *             EXEC CICS FORMATTIME
+      *             ABSTIME(WS-ABSTIME)
+      *             DDMMYYYY(WS-DATE)
+      *             DATESEP('/')
+      *             END-EXEC
+               PERFORM UNTIL EOF = 'Y'
+                    EXEC CICS READNEXT
+                         FILE('TRAINDT')
+                         INTO(WS-TRAINDT)
+                         RIDFLD(WS-TID)
+                         RESP(WS-RESP)
+                    END-EXEC
+               IF WS-RESP = DFHRESP(ENDFILE)
+                  MOVE 'NO MORE RECORDS' TO MSGO
+                  MOVE 'Y' TO EOF
+                  EXEC CICS SEND TEXT
+                       FROM(MSGO)
+                       LENGTH(15)
+                       ERASE
+                  END-EXEC
+
+                  EXEC CICS ENDBR
+                       FILE('TRAINDT')
+                  END-EXEC
+      *           EXEC CICS RETURN
+      *           END-EXEC
+               END-IF
+                    EXEC CICS SEND TEXT
+                                   FROM(CA-SOURCEC)
+                                   LENGTH(LENGTH OF CA-SOURCEC)
+                    END-EXEC
+                     EXEC CICS SEND TEXT
+                                    FROM(WS-SOURCE)
+                                    LENGTH(LENGTH OF WS-SOURCE)
+                     END-EXEC
+               IF CA-SOURCEC = WS-SOURCE AND CA-DESTIC = WS-DESTI
+                  IF EOF = 'N'
+                  ADD 1 TO I
+                  EXEC CICS SEND TEXT
+                                 FROM(I)
+                                 LENGTH(LENGTH OF I)
+                  END-EXEC
+                  EVALUATE I
+                     WHEN 1
+                          MOVE WS-TID TO TRN1O
+                          MOVE WS-TNAME TO NAM1O
+                          MOVE WS-DATE TO DAT1O
+                          MOVE WS-AVLSEATS TO SEA1O
+                     WHEN 2
+                          MOVE WS-TID TO TRN2O
+                          MOVE WS-TNAME TO NAM2O
+                          MOVE WS-DATE TO DAT2O
+                          MOVE WS-AVLSEATS TO SEA2O
+                     WHEN 3
+                          MOVE WS-TID TO TRN3O
+                          MOVE WS-TNAME TO NAM3O
+                          MOVE WS-DATE TO DAT3O
+                          MOVE WS-AVLSEATS TO SEA3O
+                     WHEN 4
+                          MOVE WS-TID TO TRN4O
+                          MOVE WS-TNAME TO NAM4O
+                          MOVE WS-DATE TO DAT4O
+                          MOVE WS-AVLSEATS TO SEA4O
+                     WHEN OTHER
+                          CONTINUE
+                  END-EVALUATE
+                  END-IF
+                  END-IF
+               END-PERFORM
+               IF I = 0
+                 MOVE 'NO TRAINS FOUND' TO MSGO
+                 EXEC CICS SEND MAP('BOOKMAP')
+                                MAPSET('ABTICK')
+                                ERASE
+                 END-EXEC
+               ELSE
+                 MOVE 'TRAINS FOUND' TO MSGO
+                 MOVE TRN1O TO CA-TRAINNO1
+                 MOVE TRN2O TO CA-TRAINNO2
+                 MOVE TRN3O TO CA-TRAINNO3
+                 MOVE TRN4O TO CA-TRAINNO4
+                 EXEC CICS SEND TEXT
+                                FROM(DFHCOMMAREA)
+                                LENGTH(LENGTH OF DFHCOMMAREA)
+                 END-EXEC
+
+                 EXEC CICS SEND MAP('BOOKMAP')
+                                MAPSET('ABTICK')
+                                ERASE
+                 END-EXEC
+                 EXEC CICS RETURN
+                               TRANSID('BOOK')
+                               COMMAREA(DFHCOMMAREA)
+                               LENGTH(LENGTH OF DFHCOMMAREA)
+                 END-EXEC
+               END-IF.
+       DETAILS-ENTRY.
+            EXEC CICS SEND TEXT
+                           FROM(DFHCOMMAREA)
+                           LENGTH(LENGTH OF DFHCOMMAREA)
+            END-EXEC
+             MOVE CA-TRAINNO1 TO TRN1O
+             MOVE CA-TRAINNO2 TO TRN2O
+             MOVE CA-TRAINNO3 TO TRN3O
+             MOVE CA-TRAINNO4 TO TRN4O
+             MOVE CA-DATE TO DATEO WS-DATE
+      *      EVALUATE CHOICEO
+      *      WHEN 1
+      *           MOVE TRN1O TO WS-TRAINNO1
+      *           MOVE NAM1O TO WS-TRAINNA
+      *           MOVE SEA1O TO WS-SEAT
+      *      WHEN 2
+      *           MOVE TRN2O TO WS-TRAINNO2
+      *          MOVE NAM2O TO WS-TRAINNA
+      *          MOVE SEA2O TO WS-SEAT
+      *      WHEN 3
+      *           MOVE TRN3O TO WS-TRAINNO3
+      *           MOVE NAM3O TO WS-TRAINNA
+      *           MOVE SEA3O TO WS-SEAT
+      *      WHEN 4
+      *           MOVE TRN4O TO WS-TRAINNO4
+      *            MOVE NAM4O TO WS-TRAINNA
+      *            MOVE SEA4O TO WS-SEAT
+      *      WHEN OTHER
+      *           MOVE 'WRONG CHOICE' TO MSGO
+      *      END-EVALUATE
+      *      MOVE WS-DATE TO WS-CDATE
+             MOVE 'X' TO SCREEN
+             MOVE CHOICEO TO CHOICE1
+             EXEC CICS SEND TEXT
+                            FROM(TRN1O)
+                            LENGTH(LENGTH OF TRN1O)
+             END-EXEC
+             EXEC CICS SEND TEXT
+                              FROM(CA-TRAINNO3)
+                              LENGTH(LENGTH OF CA-TRAINNO3)
+             END-EXEC
+             MOVE DATEI TO CA-DATE
+             EXEC CICS XCTL
+                       PROGRAM('ADETAILS')
+                       COMMAREA(DFHCOMMAREA)
+                       LENGTH(LENGTH OF DFHCOMMAREA)
+             END-EXEC.
+

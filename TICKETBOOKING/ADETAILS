@@ -1,0 +1,382 @@
+123456 IDENTIFICATION DIVISION.
+       PROGRAM-ID. ADETAILS.
+       ENVIRONMENT DIVISION.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+
+       COPY DFHAID.
+       COPY XTRAIN.
+       01 WS-RESP     PIC S9(8) COMP.
+       01 G PIC 99 VALUE 0.
+       01 SEAT6 PIC 99.
+       01 WS-ID  PIC X(80).
+       01 WS-TRAINDT.
+          05 WS-TID   PIC X(10).
+          05 WS-TNAME PIC X(30).
+          05 WS-SOURCE PIC X(10).
+          05 WS-DESTI PIC X(10).
+          05 WS-MSTOP PIC X(10).
+          05 WS-TPRICE PIC 9(4).
+          05 FILLER PIC X VALUE SPACES.
+          05 WS-TSEATS PIC 99.
+          05 WS-AVLSEATS PIC 99.
+          05 REST PIC X VALUE SPACES.
+       01 WS-DETAILS.
+          05 WS-NUM PIC 9999.
+          05 WS-PNR PIC X(10).
+          05 WS-STATUS PIC X.
+          05 WS-DATE PIC X(10).
+          05 WS-TRNNO PIC X(10).
+          05 WS-NAME PIC X(20).
+          05 WS-AGE PIC XXX.
+          05 WS-GEN PIC X.
+          05 WS-STNO PIC 99.
+          05 REST PIC X(19)  VALUE SPACES.
+       01 WS-DETAILS1.
+          05 WS-NUM1 PIC 9999.
+          05 FILLER  PIC X(60) VALUE SPACES.
+          05 WS-LINENO PIC 9999.
+          05 REST PIC X(12)  VALUE SPACES.
+       01 COUNT1 PIC 99.
+       LINKAGE SECTION.
+       01  DFHCOMMAREA.
+           05 CA-TRAINNO1 PIC X(10).
+           05 CA-TRAINNO2 PIC X(10).
+           05 CA-TRAINNO3 PIC X(10).
+           05 CA-TRAINNO4 PIC X(10).
+           05 CA-SOURCEC PIC X(10).
+           05 CA-DESTIC PIC X(10).
+           05 CA-DATE PIC X(10).
+           05 CA-SCREEN PIC X.
+           05 CA-CHOICE PIC 9.
+       PROCEDURE DIVISION.
+       MAIN-SECTION.
+      *      EXEC CICS SEND TEXT
+      *                     FROM(CA-SCREEN)
+      *                     LENGTH(LENGTH OF CA-SCREEN)
+      *      END-EXEC
+            IF DFHCOMMAREA = SPACES
+               MOVE 'TRAIN NOT FOUND' TO MSGO
+               EXEC CICS SEND MAP('XTRAIN')
+                         MAPSET('XTRAIN')
+                         ERASE
+                         FREEKB
+               END-EXEC
+               EXEC CICS RETURN
+               END-EXEC
+            ELSE
+               IF EIBCALEN = 1
+
+               EXEC CICS SEND TEXT
+                                FROM(CA-TRAINNO1)
+                                LENGTH(LENGTH OF CA-TRAINNO1)
+               END-EXEC
+      *        PERFORM TRAINDT-PARA
+
+
+               EXEC CICS SEND MAP('XTRAIN')
+                         MAPSET('XTRAIN')
+                         ERASE
+                         FREEKB
+               END-EXEC
+               EXEC CICS RETURN
+                          TRANSID('DEEN')
+                          COMMAREA(DFHCOMMAREA)
+                          LENGTH(LENGTH OF DFHCOMMAREA)
+               END-EXEC
+              ELSE
+      *        EXEC CICS SEND TEXT
+      *                         FROM(CA-TRAINNO1)
+      *                         LENGTH(LENGTH OF CA-TRAINNO1)
+      *        END-EXEC
+
+               IF CA-SCREEN = 'X'
+
+                  MOVE LOW-VALUES TO XTRAINO
+                  PERFORM TRAINDT-PARA
+
+                  MOVE 'Y' TO CA-SCREEN
+                  MOVE CA-DATE TO DATE1O
+                  EXEC CICS SEND MAP('XTRAIN')
+                            MAPSET('XTRAIN')
+                            ERASE
+                            FREEKB
+                  END-EXEC
+                  EXEC CICS RETURN
+                             TRANSID('DEEN')
+                             COMMAREA(DFHCOMMAREA)
+                             LENGTH(LENGTH OF DFHCOMMAREA)
+                  END-EXEC
+              ELSE
+               EVALUATE EIBAID
+                 WHEN  DFHENTER
+                       PERFORM RECEIVE-DETAILS-PARA
+                 WHEN  DFHPF3
+                       EXEC CICS XCTL
+                                 PROGRAM('TICKBK')
+                       END-EXEC
+                 WHEN OTHER
+                       MOVE 'WRONG KEY PRESSED' TO MSGO
+                       EXEC CICS SEND MAP('XTRAIN')
+                                 MAPSET('XTRAIN')
+                                 ERASE
+                                 FREEKB
+                       END-EXEC
+                       EXEC CICS RETURN
+                       END-EXEC
+              END-EVALUATE
+              END-IF
+              END-IF
+              END-IF.
+       RECEIVE-DETAILS-PARA.
+              EXEC CICS RECEIVE MAP('XTRAIN')
+                        MAPSET('XTRAIN')
+              END-EXEC
+      * *     MOVE CA-SEATS TO SEAT6
+              PERFORM TRAINDT-PARA
+              MOVE WS-AVLSEATS TO SEAT6
+              EXEC CICS SEND TEXT FROM(SEAT6)
+                                 LENGTH(LENGTH OF SEAT6)
+              END-EXEC
+              IF SNO1I NOT = 00
+                 MOVE 1 TO COUNT1
+              END-IF
+              IF SNO2I NOT = 00
+                 MOVE 2 TO COUNT1
+              END-IF
+              IF SNO3I NOT = 00
+                 MOVE 3 TO COUNT1
+              END-IF
+              IF SNO4I NOT = 00
+                 MOVE 4 TO COUNT1
+              END-IF
+              EXEC CICS SEND TEXT
+                             FROM(SNO4I)
+                             LENGTH(LENGTH OF SNO4I)
+              END-EXEC
+              EXEC CICS SEND TEXT
+                             FROM(COUNT1)
+                             LENGTH(LENGTH OF COUNT1)
+              END-EXEC
+              EXEC CICS SEND TEXT FROM(WS-AVLSEATS)
+                                 LENGTH(LENGTH OF WS-AVLSEATS)
+              END-EXEC
+            IF WS-AVLSEATS > 0
+             EXEC CICS SEND TEXT FROM(WS-AVLSEATS)
+                                LENGTH(LENGTH OF WS-AVLSEATS)
+             END-EXEC
+              PERFORM COUNT1 TIMES
+              ADD 1 TO G
+              EVALUATE G
+              WHEN 1
+                 COMPUTE SEAT6 = SEAT6 - 1
+                 MOVE NAME1I TO WS-NAME
+                 MOVE AGE1I TO WS-AGE
+                 MOVE GENDER1I TO WS-GEN
+                 MOVE SEAT6 TO WS-STNO
+                 MOVE 'B' TO WS-STATUS
+                 PERFORM WRITE-PARA
+              WHEN 2
+                 COMPUTE SEAT6 = SEAT6 - 1
+                 MOVE NAME2I TO WS-NAME
+                 MOVE AGE2I TO WS-AGE
+                 MOVE GENDER2I TO WS-GEN
+                 MOVE SEAT6    TO WS-STNO
+                 MOVE 'B' TO WS-STATUS
+                 PERFORM WRITE-PARA
+              WHEN 3
+                 COMPUTE SEAT6 = SEAT6 - 1
+                 MOVE NAME3I TO WS-NAME
+                 MOVE AGE3I TO WS-AGE
+                 MOVE GENDER3I TO WS-GEN
+                 MOVE SEAT6 TO WS-STNO
+                 MOVE 'B' TO WS-STATUS
+                 PERFORM WRITE-PARA
+              WHEN 4
+                 COMPUTE SEAT6 = SEAT6 - 1
+                 MOVE NAME4I TO WS-NAME
+                 MOVE AGE4I TO WS-AGE
+                 MOVE GENDER4I TO WS-GEN
+                 MOVE SEAT6 TO WS-STNO
+                 MOVE 'B' TO WS-STATUS
+                 PERFORM WRITE-PARA
+              WHEN OTHER
+                 CONTINUE
+            END-EVALUATE
+            END-PERFORM
+            PERFORM LAST-SEND-MAP
+           ELSE
+             EXEC CICS SEND TEXT FROM(WS-AVLSEATS)
+                                LENGTH(LENGTH OF WS-AVLSEATS)
+             END-EXEC
+             PERFORM WAITLIST-PARA
+            END-IF.
+
+       WRITE-PARA.
+           EXEC CICS SEND TEXT FROM(SEAT6)
+                              LENGTH(LENGTH OF SEAT6)
+           END-EXEC
+
+
+
+           MOVE 0 TO WS-NUM1 WS-NUM
+      *    MOVE CA-DATE TO WS-DATE
+           EXEC CICS READ FILE('BOOKED')
+                          INTO(WS-DETAILS1)
+                         RIDFLD(WS-NUM1)
+           END-EXEC
+           EXEC CICS SEND TEXT FROM(WS-LINENO)
+                               LENGTH(LENGTH OF WS-LINENO)
+           END-EXEC
+           MOVE 'PNRB' TO WS-PNR(1:4)
+           MOVE WS-TID(1:3) TO WS-PNR(4:2)
+           MOVE NAME1I TO WS-PNR(6:4)
+           MOVE WS-LINENO TO WS-NUM
+           MOVE CA-DATE TO WS-DATE
+           COMPUTE WS-NUM = G + WS-NUM
+            EXEC CICS WRITE
+                 FILE('BOOKED')
+                 FROM(WS-DETAILS)
+                 RIDFLD(WS-NUM)
+            END-EXEC.
+         LAST-SEND-MAP.
+            EXEC CICS READ FILE('TRAINDT')
+                      INTO(WS-TRAINDT)
+                      RIDFLD(WS-TID)
+                      UPDATE
+                      RESP(WS-RESP)
+            END-EXEC
+            MOVE SEAT6 TO WS-AVLSEATS
+            MOVE SEAT6 TO ASEATSO
+            EXEC CICS REWRITE
+                          FILE('TRAINDT')
+                          FROM(WS-TRAINDT)
+            END-EXEC
+            MOVE 0 TO WS-NUM1
+            EXEC CICS READ FILE('BOOKED')
+                      INTO(WS-DETAILS1)
+                      RIDFLD(WS-NUM1)
+                      UPDATE
+                      RESP(WS-RESP)
+            END-EXEC
+            MOVE WS-NUM TO WS-LINENO
+            EXEC CICS REWRITE
+                          FILE('BOOKED')
+                          FROM(WS-DETAILS1)
+            END-EXEC
+            MOVE 'BOOKING SUCCESFULL' TO MSGO(1:18)
+            MOVE WS-PNR TO MSGO(19:10)
+            EXEC CICS SEND MAP('XTRAIN')
+                      MAPSET('XTRAIN')
+                      ERASE
+                      FREEKB
+            END-EXEC
+            EXEC CICS RETURN
+            END-EXEC.
+       TRAINDT-PARA.
+             EXEC CICS SEND TEXT
+                              FROM(CA-TRAINNO1)
+                              LENGTH(LENGTH OF CA-TRAINNO1)
+             END-EXEC
+             MOVE SPACES TO WS-TID
+             EXEC CICS SEND TEXT
+                              FROM(CA-SCREEN)
+                              LENGTH(LENGTH OF CA-SCREEN)
+             END-EXEC
+             EVALUATE CA-CHOICE
+              WHEN 1
+                   MOVE CA-TRAINNO1 TO WS-TID
+              WHEN 2
+                   MOVE CA-TRAINNO2 TO WS-TID
+              WHEN 3
+                   MOVE CA-TRAINNO3 TO WS-TID
+              WHEN 4
+                   MOVE CA-TRAINNO4 TO WS-TID
+              WHEN 5
+                   CONTINUE
+             END-EVALUATE
+             EXEC CICS READ FILE('TRAINDT')
+                            INTO(WS-TRAINDT)
+                            RIDFLD(WS-TID)
+             END-EXEC
+             MOVE WS-TID TO TRAINNOO
+             MOVE WS-TNAME TO TRAINNAO
+             MOVE WS-DATE TO DATE1O
+             MOVE WS-AVLSEATS TO ASEATSO.
+       WAITLIST-PARA.
+             EXEC CICS SEND TEXT FROM(WS-AVLSEATS)
+                                LENGTH(LENGTH OF WS-AVLSEATS)
+             END-EXEC
+              PERFORM COUNT1 TIMES
+              ADD 1 TO G
+              EVALUATE G
+              WHEN 1
+                 MOVE NAME1I TO WS-NAME
+                 MOVE AGE1I TO WS-AGE
+                 MOVE GENDER1I TO WS-GEN
+                 MOVE SEAT6 TO WS-STNO
+                 MOVE 'W' TO WS-STATUS
+                 PERFORM WRITE-PARA
+                 PERFORM WRITE-WAITLIST-PARA
+              WHEN 2
+                 MOVE NAME2I TO WS-NAME
+                 MOVE AGE2I TO WS-AGE
+                 MOVE GENDER2I TO WS-GEN
+                 MOVE SEAT6    TO WS-STNO
+                 MOVE 'W' TO WS-STATUS
+                 PERFORM WRITE-PARA
+                 PERFORM WRITE-WAITLIST-PARA
+              WHEN 3
+                 MOVE NAME3I TO WS-NAME
+                 MOVE AGE3I TO WS-AGE
+                 MOVE GENDER3I TO WS-GEN
+                 MOVE 'W' TO WS-STATUS
+                 MOVE SEAT6 TO WS-STNO
+                 PERFORM WRITE-PARA
+                 PERFORM WRITE-WAITLIST-PARA
+              WHEN 4
+                 MOVE NAME4I TO WS-NAME
+                 MOVE AGE4I TO WS-AGE
+                 MOVE GENDER4I TO WS-GEN
+                 MOVE SEAT6 TO WS-STNO
+                 MOVE 'W' TO WS-STATUS
+                 PERFORM WRITE-PARA
+                 PERFORM WRITE-WAITLIST-PARA
+              WHEN OTHER
+                 CONTINUE
+            END-EVALUATE
+            END-PERFORM
+            PERFORM LAST-WAIT-MAP.
+       WRITE-WAITLIST-PARA.
+             MOVE 0 TO WS-STNO
+             MOVE 'PNRW' TO WS-PNR(1:4)
+             MOVE WS-TID(1:3) TO WS-PNR(4:2)
+             MOVE NAME1I TO WS-PNR(6:4)
+             MOVE WS-LINENO TO WS-NUM
+             MOVE CA-DATE TO WS-DATE
+             COMPUTE WS-NUM = G + WS-NUM
+             EXEC CICS WRITEQ TD
+                  QUEUE('WAIT')
+                  FROM(WS-DETAILS)
+             END-EXEC.
+       LAST-WAIT-MAP.
+             EXEC CICS READ FILE('BOOKED')
+                       INTO(WS-DETAILS1)
+                       RIDFLD(WS-NUM1)
+                       UPDATE
+                       RESP(WS-RESP)
+             END-EXEC
+             MOVE WS-NUM TO WS-LINENO
+             EXEC CICS REWRITE
+                           FILE('BOOKED')
+                           FROM(WS-DETAILS1)
+             END-EXEC
+             MOVE 'ADDED TO WAITLIST' TO MSGO(1:17)
+             MOVE WS-PNR TO MSGO(18:10)
+             EXEC CICS SEND MAP('XTRAIN')
+                       MAPSET('XTRAIN')
+                       ERASE
+             END-EXEC
+             EXEC CICS RETURN
+             END-EXEC.
+
